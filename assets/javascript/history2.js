@@ -33,8 +33,8 @@ export default class History2 {
    * Adds a new entry to the history.
    * @param {{
    *   url: (string),
-   *   title: (string),
-   *   isPopState: (boolean|undefined),
+   *   title=: (string|null),
+   *   isPopState=: (boolean),
    * }} arg1
    * - url: The URL for the next page in the history.
    * - title: The title of the next page in the history.
@@ -42,7 +42,7 @@ export default class History2 {
    * @return {!Promise} A promise that is resolved once the next entry in the
    *     history is loaded.
    */
-  async add({url, title, isPopState}) {
+  async add({url, title = null, isPopState = false}) {
     const prevState = this.state;
     const nextState = getState(url, title);
 

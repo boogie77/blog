@@ -1,7 +1,3 @@
-{% extends 'base.html' %}
-
-{% block content %}
-
 <article role="article" class="hentry">
 
   <header class="ContentHeader">
@@ -13,7 +9,7 @@
   </header>
 
   <div class="entry-content">
-    {{ super() }}
+    {{ page.markup }}
   </div>
 
   <footer class="entry-unrelated">
@@ -45,5 +41,3 @@
   </footer>
 
 </article>
-
-{% endblock %}

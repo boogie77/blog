@@ -7,8 +7,11 @@ const markdownItAnchor = require('markdown-it-anchor');
 const moment = require('moment-timezone');
 const nunjucks = require('nunjucks');
 const path = require('path');
+const striptags = require('striptags');
 const {getRevisionedAssetUrl} = require('./static');
+
 const book = require('../book');
+const config = require('../config.json');
 
 
 const env = nunjucks.configure('templates', {
@@ -24,35 +27,52 @@ env.addFilter('revision', (filename) => {
   return getRevisionedAssetUrl(filename);
 });
 
+env.addFilter('addSuffix', (title) => {
+  const {titleSuffix} = book.site;
+  return title.endWith(titleSuffix) ? title : `${title}${titleSuffix}`;
+});
+
+env.addFilter('encode', (content) => {
+  return he.encode(content, {useNamedReferences: true});
+});
+
 const inlineCache = {};
 env.addFilter('inline', (filepath) => {
   if (!inlineCache[filepath]) {
-    inlineCache[filepath] = fs.readFileSync(`build/${filepath}`, 'utf-8');
+    try {
+      inlineCache[filepath] = fs.readFileSync(`build/${filepath}`, 'utf-8');
+    } catch (err) {
+      if (process.env.NODE_ENV == 'production') {
+        throw err;
+      } else {
+        console.warn(err.message);
+        inlineCache[filepath] = '';
+      }
+    }
   }
 
   return inlineCache[filepath];
 });
 
-const minifyHtml = (html) => {
-  let opts = {
-    removeComments: true,
-    collapseWhitespace: true,
-    collapseBooleanAttributes: true,
-    removeAttributeQuotes: true,
-    removeRedundantAttributes: true,
-    useShortDoctype: true,
-    removeEmptyAttributes: true,
-    minifyJS: true,
-    minifyCSS: true,
-  };
 
-  return htmlMinifier.minify(html, opts);
-};
+const minifyHtml = (content) => {
+  if (process.env.NODE_ENV == 'production') {
+    let opts = {
+      removeComments: true,
+      collapseWhitespace: true,
+      collapseBooleanAttributes: true,
+      removeAttributeQuotes: true,
+      removeRedundantAttributes: true,
+      useShortDoctype: true,
+      removeEmptyAttributes: true,
+      minifyJS: true,
+      minifyCSS: true,
+    };
 
-
-const processHtml = (html) => {
-  return process.env.NODE_ENV == 'production' ?
-      minifyHtml(html) : html;
+    return htmlMinifier.minify(content, opts);
+  } else {
+    return content;
+  }
 };
 
 /**
@@ -96,31 +116,36 @@ const getOutputPathFromPathname = (pathname) => {
   return `build${pathname.replace(/\/$/, '/index.html')}`;
 };
 
-const renderArticleContent = async () => {
+const buildArticles = async () => {
   for (const article of book.articles) {
-    const data = {
-      site: book.site,
-      page: article,
-    };
     const content =
         await fs.readFile(`${article.path.slice(1, -1)}.md`, 'utf-8');
 
-    article.content = renderMarkdown(nunjucks.renderString(content, data));
-  }
-};
+    article.markup = renderMarkdown(nunjucks.renderString(content));
 
-const buildArticles = async () => {
-  for (const article of book.articles) {
     const data = {
       site: book.site,
       page: article,
     };
 
-    const html = nunjucks.render(path.resolve('templates/article.html'), data);
+    article.content = nunjucks.render(path.resolve('templates/article.html'), data);
+
+    const json = {
+      title: article.title + book.site.titleSuffix,
+      path: article.path,
+      content: minifyHtml(article.content),
+    };
+
+    await fs.outputJson(
+        getOutputPathFromPathname(article.path).replace(/\.html/, '.json'),
+        json);
+
+    const baseTemplatePath = 'templates/base.html';
+    const html = nunjucks.render(path.resolve(baseTemplatePath), data);
 
     await fs.outputFile(
         getOutputPathFromPathname(article.path),
-        processHtml(html));
+        minifyHtml(html));
   }
 };
 
@@ -134,19 +159,37 @@ const buildPages = async () => {
       page: page,
     };
 
-    const content = nunjucks.render(path.resolve(pageTemplatePath), data);
+    page.content = nunjucks.render(path.resolve(pageTemplatePath), data);
 
-    await fs.outputFile(
-        getOutputPathFromPathname(page.path),
-        page.path.match(/(\/|\.html)$/) ? processHtml(content) : content);
+    if (pageTemplatePath.endsWith('.html')) {
+      const json = {
+        title: page.title + book.site.titleSuffix,
+        path: page.path,
+        content: minifyHtml(page.content),
+      };
+
+      await fs.outputJson(
+          getOutputPathFromPathname(page.path).replace(/\.html/, '.json'),
+          json);
+
+      const baseTemplatePath = 'templates/base.html';
+      const html = nunjucks.render(path.resolve(baseTemplatePath), data);
+      await fs.outputFile(
+          getOutputPathFromPathname(page.path), minifyHtml(html));
+    } else {
+      await fs.outputFile(
+          getOutputPathFromPathname(page.path),
+          page.content);
+    }
   }
 };
 
 const build = async () => {
-  await renderArticleContent();
   await buildArticles();
   await buildPages();
 };
 
 
 module.exports = {build};
+
+module.exports.build();

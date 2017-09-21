@@ -9,43 +9,22 @@ import Timer from './timer.js';
 // Cache the container element to avoid multiple lookups.
 let container;
 
-// Store the result of page content requests to avoid multiple
-// lookups when navigation to a previously seen page.
+
+// Store the result of page data requests to avoid multiple
+// lookups when navigating to a previously seen page.
 const pageCache = {};
 
 
 /**
- * Gets the title of a page from a link element.
- * @param {!Element} a The `<a>`` element.
- * @return {string} The title of the page the link will load.
- */
-const getTitle = (a) => {
-  const title = a.title || a.innerText;
-  return title ? title + ' \u2014 Philip Walton' : '';
-};
-
-
-/**
- * Extracts the markup from inside the `<main>` element of an HTML document.
- * @param {string} html The full HTML document text.
- * @return {string} Just the content inside `<main>`.
- */
-const getMainContent = (html) => {
-  const match = /<main[^>]*>([\s\S]*)<\/main>/.exec(html);
-  return match ? match[1] : '';
-};
-
-
-/**
- * Fetches the content of a page at the passed page path and track how long it
- * takes. If the content is already in the page cache, do not make an
- * unnecessary fetch request. If an error occurs making the request, show
- * an alert to the user.
+ * Fetches the page data for the passed path and tracks how long it takes.
+ * If the content is already in the page cache, do not make an unnecessary
+ * fetch request. If an error occurs making the request, show an alert to the
+ * user.
  * @param {string} path The page path to load.
- * @return {!Promise} A promise that fulfills with the HTML content of a
- *    page or rejects with the network error.
+ * @return {!Promise} A promise that fulfills with an object containing the
+ *    content and title of a page or rejects with the network error.
  */
-const fetchPageContent = async (path) => {
+const fetchPage = async (path) => {
   const timer = new Timer().start();
   const gaEventData = {
     eventCategory: 'Virtual Pageviews',
@@ -63,29 +42,23 @@ const fetchPageContent = async (path) => {
     return pageCache[path];
   } else {
     try {
-      const response = await fetch(path);
+      const response = await fetch(`${path}index.json`);
 
-      let html;
+      let data;
       if (response.ok) {
-        html = await response.text();
+        data = await response.json();
       } else {
         throw new Error(
             `Response: (${response.status}) ${response.statusText}`);
       }
 
-      const content = getMainContent(html);
-      if (!content) {
-        throw new Error(`Could not parse content from response: ${path}`);
-      } else {
-        timer.stop();
-        gaTest('send', 'event', Object.assign(gaEventData, {
-          eventValue: Math.round(timer.duration),
-          eventLabel: 'network',
-        }));
+      timer.stop();
+      gaTest('send', 'event', Object.assign(gaEventData, {
+        eventValue: Math.round(timer.duration),
+        eventLabel: 'network',
+      }));
 
-        pageCache[path] = content;
-        return content;
-      }
+      return pageCache[path] = data;
     } catch (err) {
       const message = (err instanceof TypeError) ?
           'Check your network connection to ensure you\'re still online.' :
@@ -95,6 +68,7 @@ const fetchPageContent = async (path) => {
         title: `Oops, there was an error making your request`,
         body: message,
       });
+
       // Rethrow to be able to catch it again in an outer scope.
       throw err;
     }
@@ -103,11 +77,12 @@ const fetchPageContent = async (path) => {
 
 
 /**
- * Adds the new content to the page.
+ * Update the <main> element with the new content and set the new title.
  * @param {string} content The content to set to the page container.
  */
-const showPageContent = (content) => {
+const updatePage = ({content, title}) => {
   container.innerHTML = content;
+  document.title = title;
 };
 
 
@@ -145,13 +120,16 @@ export const init = () => {
 
   // Add the current page to the cache.
   container = document.querySelector('main');
-  pageCache[location.pathname] = container.innerHTML;
+  pageCache[location.pathname] = {
+    content: container.innerHTML,
+    title: document.title,
+  };
 
   const history2 = new History2(async (state) => {
     try {
-      const content = await fetchPageContent(state.pathname);
+      const data = await fetchPage(state.pathname);
 
-      showPageContent(content);
+      updatePage(data);
       drawer.close();
       setScroll(state.hash);
       resetImpressionTracking();
@@ -190,7 +168,6 @@ export const init = () => {
       event.preventDefault();
       history2.add({
         url: link.href,
-        title: getTitle(delegateTarget),
       });
     }
   });

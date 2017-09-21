@@ -24,7 +24,12 @@ const resetManifest = () => {
 
 const getAsset = (filename) => {
   if (!revisionedAssetManifest[filename]) {
-    throw new Error(`Revisioned file for '${filename}' doesn't exist`);
+    const msg = `Revisioned file for '${filename}' doesn't exist`;
+    if (process.env.NODE_ENV == 'production') {
+      throw new Error(`Revisioned file for '${filename}' doesn't exist`);
+    } else {
+      console.warn(msg);
+    }
   }
 
   return revisionedAssetManifest[filename];
