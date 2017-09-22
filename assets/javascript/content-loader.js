@@ -42,7 +42,7 @@ const fetchPage = async (path) => {
     return pageCache[path];
   } else {
     try {
-      const response = await fetch(`${path}index.json`);
+      const response = await fetch(`${path}content.json`);
 
       let data;
       if (response.ok) {

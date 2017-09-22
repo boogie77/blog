@@ -11,17 +11,22 @@ site:
 pages:
 - title: "Home"
   path: /
+  output: index.html
 - title: "Articles"
   path: /articles/
 - title: "About"
   path: /about/
 - title: "Page Not Found"
   path: /404.html
+  output: 404.html
+
+  private: true
+
+resources:
 - title: "RSS Feed"
   path: /atom.xml
 - title: "Web Manifest"
   path: /manifest.json
-
 
 articles:
 - title: "CSS Architecture"

@@ -14,7 +14,10 @@ const book = require('../book');
 const config = require('../config.json');
 
 
-const env = nunjucks.configure('templates', {
+const TEMPLATES_DIR = 'templates';
+
+
+const env = nunjucks.configure(TEMPLATES_DIR, {
   autoescape: false,
   watch: false,
 });
@@ -35,6 +38,7 @@ env.addFilter('addSuffix', (title) => {
 env.addFilter('encode', (content) => {
   return he.encode(content, {useNamedReferences: true});
 });
+
 
 const inlineCache = {};
 env.addFilter('inline', (filepath) => {
@@ -75,6 +79,7 @@ const minifyHtml = (content) => {
   }
 };
 
+
 /**
  * Renders markdown content as HTML with syntax highlighted code blocks.
  * @param {string} content A markdown string.
@@ -101,34 +106,52 @@ const renderMarkdown = (content) => {
 };
 
 
-const getPageTemplateFromPathname = (pathname) => {
+const getTemplate = (pathname) => {
+  let template;
+
   if (pathname == '/') {
-    return 'templates/index.html';
+    template = 'index.html';
   } else if (pathname.endsWith('/')) {
-    return `templates/${pathname.slice(0, -1)}.html`;
+    template = `${pathname.slice(0, -1)}.html`;
   } else {
-    return `templates/${pathname}`;
+    template = pathname;
   }
+
+  return path.resolve(path.join(TEMPLATES_DIR, template));
 };
 
-const getOutputPathFromPathname = (pathname) => {
-  // Add index.html if necessary and remove leading slash.
-  return `build${pathname.replace(/\/$/, '/index.html')}`;
+
+const getOutputFile = (page) => {
+  if (!page.output) {
+    page.output = path.join(
+        page.path, page.path.endsWith('/') ? 'index.html' : '');
+  }
+
+  return path.join(config.publicDir, page.output);
 };
+
+
+const getJsonOutputFile = (page) => {
+  return path.join(path.dirname(getOutputFile(page)), 'content.json');
+};
+
 
 const buildArticles = async () => {
+  const baseTemplate = getTemplate('base.html');
+  const articleTemplate = getTemplate('article.html');
+
   for (const article of book.articles) {
-    const content =
+    const markdown =
         await fs.readFile(`${article.path.slice(1, -1)}.md`, 'utf-8');
 
-    article.markup = renderMarkdown(nunjucks.renderString(content));
+    article.markup = renderMarkdown(nunjucks.renderString(markdown));
 
     const data = {
       site: book.site,
       page: article,
     };
 
-    article.content = nunjucks.render(path.resolve('templates/article.html'), data);
+    article.content = nunjucks.render(articleTemplate, data);
 
     const json = {
       title: article.title + book.site.titleSuffix,
@@ -136,22 +159,17 @@ const buildArticles = async () => {
       content: minifyHtml(article.content),
     };
 
-    await fs.outputJson(
-        getOutputPathFromPathname(article.path).replace(/\.html/, '.json'),
-        json);
+    await fs.outputJson(getJsonOutputFile(article), json);
 
-    const baseTemplatePath = 'templates/base.html';
-    const html = nunjucks.render(path.resolve(baseTemplatePath), data);
-
-    await fs.outputFile(
-        getOutputPathFromPathname(article.path),
-        minifyHtml(html));
+    const html = nunjucks.render(baseTemplate, data);
+    await fs.outputFile(getOutputFile(article), minifyHtml(html));
   }
 };
 
+
 const buildPages = async () => {
   for (const page of book.pages) {
-    const pageTemplatePath = getPageTemplateFromPathname(page.path);
+    const template = getTemplate(page.path);
 
     const data = {
       site: book.site,
@@ -159,37 +177,45 @@ const buildPages = async () => {
       page: page,
     };
 
-    page.content = nunjucks.render(path.resolve(pageTemplatePath), data);
+    page.content = nunjucks.render(template, data);
 
-    if (pageTemplatePath.endsWith('.html')) {
+    // Private pages are those that cannot be found by following a link on the
+    // site, and thus no content partial needs to be created for them.
+    if (!page.private) {
       const json = {
         title: page.title + book.site.titleSuffix,
         path: page.path,
         content: minifyHtml(page.content),
       };
 
-      await fs.outputJson(
-          getOutputPathFromPathname(page.path).replace(/\.html/, '.json'),
-          json);
-
-      const baseTemplatePath = 'templates/base.html';
-      const html = nunjucks.render(path.resolve(baseTemplatePath), data);
-      await fs.outputFile(
-          getOutputPathFromPathname(page.path), minifyHtml(html));
-    } else {
-      await fs.outputFile(
-          getOutputPathFromPathname(page.path),
-          page.content);
+      await fs.outputJson(getJsonOutputFile(page), json);
     }
+
+    const html = nunjucks.render(getTemplate('base.html'), data);
+    await fs.outputFile(getOutputFile(page), minifyHtml(html));
   }
 };
+
+
+const buildResources = async () => {
+  const data = {
+    site: book.site,
+    articles: book.articles,
+  };
+  for (const resource of book.resources) {
+    const template = getTemplate(resource.path);
+    const content = nunjucks.render(template, data);
+
+    await fs.outputFile(getOutputFile(resource), content);
+  }
+};
+
 
 const build = async () => {
   await buildArticles();
   await buildPages();
+  await buildResources();
 };
 
 
 module.exports = {build};
-
-module.exports.build();
