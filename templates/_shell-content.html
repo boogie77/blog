@@ -1,0 +1,6 @@
+{% block content %}
+  {% if dynamicTitle !== false %}
+    <script>document.title = '{{ page.title }}'</script>
+  {% endif %}
+
+{% endblock %}

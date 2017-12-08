@@ -12,6 +12,7 @@ const javascript = require('./javascript');
       images.build(),
     ]);
 
+    await content.render();
     await javascript();
     await content.build();
   } catch (err) {

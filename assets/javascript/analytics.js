@@ -41,7 +41,7 @@ const TEST_TRACKERS = ALL_TRACKERS.filter(({name}) => /test/.test(name));
  * something. This is needed since Google Analytics will drop empty dimension
  * values in reports.
  */
-const NULL_VALUE = '(not set)';
+export const NULL_VALUE = '(not set)';
 
 
 /**

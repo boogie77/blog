@@ -1,3 +1,7 @@
+{% extends layout %}
+
+{% block content %}
+
 <article role="article" class="hentry">
 
   <header class="ContentHeader">
@@ -41,3 +45,9 @@
   </footer>
 
 </article>
+
+{% if layout == 'partial.html' %}
+  <script>document.title = '{{ page.title }}{{ site.titleSuffix }}'</script>
+{% endif %}
+
+{% endblock %}

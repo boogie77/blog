@@ -2,9 +2,7 @@
 
 {% set title = 'Recent Articles' %}
 
-{% block content %}
-
-  {{ super() }}
+{% block pageContent %}
 
   <ul class="ArticleList">
     {% for article in articles | reverse %}

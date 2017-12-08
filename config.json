@@ -1,5 +1,9 @@
 {
   "publicDir": "build",
   "publicStaticDir": "build/static",
-  "manifestFileName": "revisioned-asset-manifest.json"
+  "templatesDir": "templates",
+  "contentPartialsSuffix": ".content.html",
+  "manifestFileName": "revisioned-asset-manifest.json",
+  "cacheNamespace": "pw:v1",
+  "analyticsjsUrl": "https://www.google-analytics.com/analytics.js"
 }

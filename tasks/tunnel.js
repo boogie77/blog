@@ -18,8 +18,7 @@ const launch = () => {
       // fixed: https://github.com/bermi/sauce-connect-launcher/issues/116
     }
   });
-
-}
+};
 
 
 module.exports = {launch};

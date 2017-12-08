@@ -11,15 +11,16 @@ site:
 pages:
 - title: "Home"
   path: /
-  output: index.html
 - title: "Articles"
   path: /articles/
 - title: "About"
   path: /about/
 - title: "Page Not Found"
   path: /404.html
-  output: 404.html
-
+  private: true
+- path: /shell-start.html
+  private: true
+- path: /shell-end.html
   private: true
 
 resources:

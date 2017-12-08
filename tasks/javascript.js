@@ -7,6 +7,7 @@ const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const webpack = require('webpack');
 const ManifestPlugin = require('webpack-manifest-plugin');
 const {getManifest, addAsset} = require('./asset-manifest');
+const {getCacheData} = require('./content');
 const {getRevisionedAssetUrl} = require('./static');
 const config = require('../config.json');
 
@@ -107,11 +108,12 @@ const getMainConfig = () => ({
       generateBabelEnvLoader([
         // The last two versions of each browser, excluding versions
         // that don't support <script type="module">.
-        'last 2 Chrome versions', 'not Chrome < 60',
-        'last 2 Safari versions', 'not Safari < 10.1',
-        'last 2 iOS versions', 'not iOS < 10.3',
-        'last 2 Firefox versions', 'not Firefox < 54',
-        'last 2 Edge versions', 'not Edge < 15',
+        // 'last 2 Chrome versions', 'not Chrome < 60',
+        // 'last 2 Safari versions', 'not Safari < 10.1',
+        // 'last 2 iOS versions', 'not iOS < 10.3',
+        // 'last 2 Firefox versions', 'not Firefox < 54',
+        // 'last 2 Edge versions', 'not Edge < 15',
+        'last 2 UCAndroid versions',
       ]),
     ],
   },
@@ -140,7 +142,7 @@ const getLegacyConfig = () => ({
   },
 });
 
-const getSwConfig = () => ({
+const getSwConfig = (defines) => ({
   entry: {
     'sw': './assets/sw.js',
   },
@@ -151,12 +153,8 @@ const getSwConfig = () => ({
   cache: buildCache,
   devtool: '#source-map',
   plugins: [
-    new webpack.DefinePlugin({
-      MAIN_CSS_URL: JSON.stringify(getRevisionedAssetUrl('main.css')),
-      MAIN_JS_URL: JSON.stringify(getRevisionedAssetUrl('main.js')),
-      MAIN_RUNTIME_URL: JSON.stringify(getRevisionedAssetUrl('runtime.js')),
-    }),
-    new UglifyJSPlugin({sourceMap: true}),
+    new webpack.DefinePlugin(defines),
+    // new UglifyJSPlugin({sourceMap: true}),
   ],
   module: {
     rules: [
@@ -185,12 +183,40 @@ const createCompiler = (config) => {
 
 
 module.exports = async () => {
+  // Compile the main bundle
   const compileMainBundle = createCompiler(getMainConfig());
   await compileMainBundle();
 
+  // Compile the legacy bundle
   const compileLegacyBundle = createCompiler(getLegacyConfig());
   await compileLegacyBundle();
 
-  const compileSwBundle = createCompiler(getSwConfig());
+  // Generate the asset manifest and compile the service worker bundle.
+  const cacheNames = {
+    CONTENT: `${config.cacheNamespace}:content`,
+    STATIC_ASSETS: `${config.cacheNamespace}:static-assets`,
+    THIRD_PARTY_ASSETS: `${config.cacheNamespace}:third-party`,
+  };
+
+  const staticAssets = {
+    MAIN_JS_URL: getRevisionedAssetUrl('main.js'),
+    MAIN_RUNTIME_URL: getRevisionedAssetUrl('runtime.js'),
+  };
+
+  const thirdPartyAssets = {
+    ANALYTICSJS_URL: config.analyticsjsUrl,
+  };
+
+  const cacheData = await getCacheData();
+
+  console.log(JSON.stringify(cacheData, null, 2));
+
+  const compileSwBundle = createCompiler(getSwConfig({
+    __CACHE_DATA__: JSON.stringify(cacheData, null, 2),
+    __CACHE_NAMES__: JSON.stringify(cacheNames),
+    __STATIC_ASSETS__: JSON.stringify(staticAssets),
+    __THIRD_PARTY_ASSETS__: JSON.stringify(thirdPartyAssets),
+    __CONTENT_PARTIALS_SUFFIX__: JSON.stringify(config.contentPartialsSuffix),
+  }));
   await compileSwBundle();
 };

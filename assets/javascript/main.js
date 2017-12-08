@@ -10,17 +10,20 @@ import * as drawer from './drawer';
  * The main script entry point for the site. Initalizes all the sub modules
  * analytics tracking, and the service worker.
  */
-const main = () => {
+const main = async () => {
   alerts.init();
   breakpoints.init();
   contentLoader.init();
   drawer.init();
+  // analytics.init();
 
-  analytics.init();
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker
-        .register('/sw.js')
-        .catch((err) => analytics.trackError(err));
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      window.reg = registration;
+    } catch (err) {
+      analytics.trackError(err);
+    }
   }
 };
 
