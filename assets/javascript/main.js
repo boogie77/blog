@@ -16,14 +16,19 @@ const main = async () => {
   contentLoader.init();
   drawer.init();
 
-  analytics.init();
+  // analytics.init();
   if ('serviceWorker' in navigator) {
     try {
       await navigator.serviceWorker.register('/sw.js');
     } catch (err) {
-      analytics.trackError(err);
+      // analytics.trackError(err);
     }
   }
+
+  const updatesChannel = new BroadcastChannel('api-updates');
+  updatesChannel.addEventListener('message', async (event) => {
+    console.log('BroadcastChannel message', event.data, event);
+  });
 };
 
 main();

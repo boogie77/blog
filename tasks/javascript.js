@@ -7,6 +7,7 @@ const path = require('path');
 const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 const ManifestPlugin = require('webpack-manifest-plugin');
+const workboxBuild = require('workbox-build');
 const {addAsset, getManifest, getRevisionedAssetUrl} =
     require('./utils/assets');
 const config = require('../config.json');
@@ -147,51 +148,40 @@ const getLegacyConfig = () => Object.assign(baseConfig(), {
   },
 });
 
-const getSwConfig = () => ({
-  mode: process.env.NODE_ENV || 'development',
-  entry: {
-    'sw': './assets/sw.js',
-  },
-  output: {
-    path: path.resolve(__dirname, '..', config.publicDir),
-    filename: '[name].js',
-  },
-  cache: buildCache,
-  devtool: '#source-map',
-  plugins: [
+const getSwConfig = (manifestEntries) => {
+  const plugins = [
     new webpack.DefinePlugin({
-      MAIN_CSS_URL: JSON.stringify(getRevisionedAssetUrl('main.css')),
-      MAIN_JS_URL: JSON.stringify(getRevisionedAssetUrl('main.js')),
-      MAIN_RUNTIME_URL: JSON.stringify(getRevisionedAssetUrl('runtime.js')),
+      PRECACHE_MANIFEST: JSON.stringify(manifestEntries),
     }),
-  ],
-  module: {
-    rules: [
-      generateBabelEnvLoader([
-        // Browsers that support service worker.
-        'last 2 Chrome versions', 'not Chrome < 45',
-        'last 2 Firefox versions', 'not Firefox < 44',
-        'last 2 Edge versions', 'not Edge < 17',
-        'last 2 Safari versions', 'not Safari < 11.1',
-      ]),
-    ],
-  },
-  optimization: {
-    minimizer: [new TerserPlugin({
-      sourceMap: true,
-      terserOptions: {
-        // TODO(philipwalton): mangling properties in the service worker
-        // breaks dependencies for somme reason.
-        // mangle: {
-        //   properties: {
-        //     regex: /(^_|_$)/,
-        //   }
-        // },
-        mangle: true,
-      },
-    })],
-  },
-});
+  ];
+  if (process.env.NODE_ENV === 'production') {
+    plugins.push(new UglifyJSPlugin({sourceMap: true}));
+  }
+
+  return {
+    entry: {
+      'sw': './assets/sw.js',
+    },
+    output: {
+      path: path.resolve(__dirname, '..', config.publicDir),
+      filename: '[name].js',
+    },
+    cache: buildCache,
+    devtool: '#source-map',
+    plugins,
+    module: {
+      rules: [
+        generateBabelEnvLoader([
+          // Browsers that support service worker.
+          'last 2 Chrome versions', 'not Chrome < 45',
+          'last 2 Firefox versions', 'not Firefox < 44',
+          'last 2 Edge versions', 'not Edge < 17',
+          'last 2 Safari versions', 'not Safari < 11.1',
+        ]),
+      ],
+    },
+  };
+};
 
 const createCompiler = (config) => {
   const compiler = webpack(config);
@@ -206,13 +196,30 @@ const createCompiler = (config) => {
   };
 };
 
-gulp.task('javascript', async () => {
+gulp.task('javascript:sw', async () => {
+  const {manifestEntries} = await workboxBuild.getManifest({
+    globDirectory: '.',
+    globPatterns: [],
+    templatedUrls: {
+      '/shell-start.html': [
+        'templates/_*',
+        'templates/shell-start.html',
+      ],
+      '/shell-end.html': [
+        'templates/_*',
+        'templates/shell-end.html',
+      ],
+    }
+  });
+
+  const compileSwBundle = createCompiler(getSwConfig(manifestEntries));
+  await compileSwBundle();
+})
+
+gulp.task('javascript:main', async () => {
   try {
     const compileMainBundle = createCompiler(getMainConfig());
     await compileMainBundle();
-
-    const compileSwBundle = createCompiler(getSwConfig());
-    await compileSwBundle();
 
     if (['debug', 'production'].includes(process.env.NODE_ENV)) {
       // Generate the main-legacy bundle.
@@ -223,3 +230,5 @@ gulp.task('javascript', async () => {
     console.error(err);
   }
 });
+
+gulp.task('javascript', gulp.series('javascript:main', 'javascript:sw'));

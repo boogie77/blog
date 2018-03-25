@@ -70,6 +70,13 @@
     "webdriverio": "^4.13.2",
     "webpack": "^4.17.0",
     "webpack-manifest-plugin": "^2.0.3",
-    "whatwg-fetch": "^2.0.4"
+    "whatwg-fetch": "^2.0.4",
+    "workbox-broadcast-cache-update": "^3.0.1",
+    "workbox-build": "^3.0.1",
+    "workbox-cache-expiration": "^3.0.1",
+    "workbox-google-analytics": "^3.0.0",
+    "workbox-precaching": "^3.0.1",
+    "workbox-routing": "^3.0.0",
+    "workbox-strategies": "^3.0.0"
   }
 }
