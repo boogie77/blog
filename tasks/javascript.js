@@ -160,7 +160,7 @@ const getSwConfig = (manifestEntries) => {
 
   return {
     entry: {
-      'sw': './assets/sw.js',
+      'sw': './assets/sw/sw.js',
     },
     output: {
       path: path.resolve(__dirname, '..', config.publicDir),
