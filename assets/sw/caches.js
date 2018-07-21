@@ -1,9 +1,9 @@
 export const cacheNames = {
-  LAYOUT: 'pw:v1:layout',
-  LAYOUT_TEMP: 'pw:v1:layout-temp',
-  PAGES: 'pw:v1:pages',
-  STATIC_ASSETS: 'pw:v1:static',
-  THIRD_PARTY_ASSETS: 'pw:v1:third-party-assets',
+  LAYOUT: 'pw_v1_layout',
+  LAYOUT_TEMP: 'pw_v1_layout_temp',
+  PAGES: 'pw_v1_pages',
+  STATIC_ASSETS: 'pw_v1_static',
+  THIRD_PARTY_ASSETS: 'pw_v1_third_party_assets',
 };
 
 export const deleteUnusedCaches = async () => {

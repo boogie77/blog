@@ -1,9 +1,12 @@
 import {initialize as initializeOfflineAnalytics}
     from 'workbox-google-analytics';
-import {Router} from 'workbox-routing/Router.mjs';
 import {cacheNames, deleteUnusedCaches} from './caches.js';
-import * as precache from './precache.js';
-import {routes} from './routes.js';
+import {installPrecache, activatePrecache} from './precache.js';
+import {router} from './router.js';
+import {createFakeFetchEvent} from './utils.js';
+
+import core, {LOG_LEVELS} from 'workbox-core';
+core.setLogLevel(LOG_LEVELS.debug);
 
 const dimensions = {
   SERVICE_WORKER_REPLAY: 'cd8',
@@ -13,10 +16,16 @@ initializeOfflineAnalytics({
   parameterOverrides: {[dimensions.SERVICE_WORKER_REPLAY]: 'replay'},
 });
 
-const router = new Router();
-for (const route of Object.values(routes)) {
-  router.registerRoute(route());
-}
+self.addEventListener('message', async (evt) => {
+  if (evt.data.cmd === 'CACHE_LOADED_RESOURCES') {
+    for (const url of evt.data.urls) {
+      const fakeFetchEvent = createFakeFetchEvent(url);
+      console.log('Handling fake route for', url);
+
+      evt.waitUntil(router.handleRequest(fakeFetchEvent));
+    }
+  }
+});
 
 self.addEventListener('fetch', (evt) => {
   const responsePromise = router.handleRequest(evt);
@@ -28,7 +37,7 @@ self.addEventListener('fetch', (evt) => {
 self.addEventListener('install', (evt) => {
   console.log('install', evt);
   const installationComplete = async () => {
-    await precache.install();
+    await installPrecache();
     self.skipWaiting();
   };
 
@@ -38,7 +47,7 @@ self.addEventListener('install', (evt) => {
 self.addEventListener('activate', (evt) => {
   console.log('activate', evt);
   const activationComplete = async () => {
-    await precache.activate();
+    await activatePrecache();
     await deleteUnusedCaches();
 
     // TODO(philipwalton): also delete old IDB databases used by precache
@@ -46,4 +55,3 @@ self.addEventListener('activate', (evt) => {
   };
   evt.waitUntil(activationComplete());
 });
-

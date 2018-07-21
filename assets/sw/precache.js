@@ -6,28 +6,6 @@ import {cacheNames} from './caches.js';
 
 /* global PRECACHE_MANIFEST */
 
-const precacheAnalyticsJs = async () => {
-  const analyticsJsUrl = 'https://www.google-analytics.com/analytics.js';
-  const cache = await caches.open(cacheNames.THIRD_PARTY_ASSETS);
-  const match = await cache.match(analyticsJsUrl);
-
-  if (!match) {
-    const analyticsJsRequest = new Request(analyticsJsUrl, {mode: 'no-cors'});
-    const analyticsJsResponse = await fetch(analyticsJsRequest);
-    await cache.put(analyticsJsRequest, analyticsJsResponse.clone());
-  }
-};
-
-let broadcastUpdatePlugin;
-const getOrCreateBroadcastUpdatePlugin = () => {
-  if (!broadcastUpdatePlugin) {
-    broadcastUpdatePlugin = new BroadcastUpdatePlugin('api-updates', {
-      headersToCheck: ['ETag'],
-    });
-  }
-  return broadcastUpdatePlugin;
-};
-
 let precacheController;
 const getOrCreatePrecacheController = () => {
   if (!precacheController) {
@@ -36,17 +14,20 @@ const getOrCreatePrecacheController = () => {
   return precacheController;
 };
 
-export const install = async () => {
+export const installPrecache = async () => {
   const precacheController = getOrCreatePrecacheController();
   precacheController.addToCacheList(PRECACHE_MANIFEST);
 
   await precacheController.install();
-  await precacheAnalyticsJs();
 };
 
-export const activate = async () => {
+export const activatePrecache = async () => {
   const precacheController = getOrCreatePrecacheController();
   await precacheController.activate({
-    plugins: [getOrCreateBroadcastUpdatePlugin()],
+    plugins: [
+      new BroadcastUpdatePlugin('api-updates', {
+        headersToCheck: ['ETag', 'Content-Length'],
+      }),
+    ],
   });
 };

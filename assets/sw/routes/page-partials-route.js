@@ -10,11 +10,11 @@ const pagePartialsMatcher = ({url}) => {
       url.pathname.endsWith('index.content.html');
 };
 
-const pagePartialsHandler = new StaleWhileRevalidate({
+export const pagePartialsHandler = new StaleWhileRevalidate({
   cacheName: cacheNames.PAGES,
   plugins: [
     new BroadcastUpdatePlugin('api-updates', {
-      headersToCheck: ['ETag'],
+      headersToCheck: ['ETag', 'Content-Length'],
     }),
   ],
 });

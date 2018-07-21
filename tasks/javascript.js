@@ -4,12 +4,20 @@ const gulp = require('gulp');
 const md5 = require('md5');
 // const NameAllModulesPlugin = require('name-all-modules-plugin');
 const path = require('path');
+const {rollup} = require('rollup');
+const babel = require('rollup-plugin-babel');
+const minify = require('uglify-es').minify;
+const replace = require('rollup-plugin-replace');
+const resolve = require('rollup-plugin-node-resolve');
+const uglifyPlugin = require('rollup-plugin-uglify');
+const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 const ManifestPlugin = require('webpack-manifest-plugin');
 const workboxBuild = require('workbox-build');
 const {addAsset, getManifest, getRevisionedAssetUrl} =
     require('./utils/assets');
+const {checkModuleDuplicates} = require('./utils/check-module-duplicates.js');
 const config = require('../config.json');
 
 
@@ -73,7 +81,7 @@ const generateBabelEnvLoader = (browserlist) => {
           ['env', {
             // debug: true,
             modules: false,
-            useBuiltIns: true,
+            // useBuiltIns: true,
             targets: {
               browsers: browserlist,
             },
@@ -148,73 +156,22 @@ const getLegacyConfig = () => Object.assign(baseConfig(), {
   },
 });
 
-const getSwConfig = (manifestEntries) => {
-  const plugins = [
-    new webpack.DefinePlugin({
-      PRECACHE_MANIFEST: JSON.stringify(manifestEntries),
-    }),
-  ];
-  if (process.env.NODE_ENV === 'production') {
-    plugins.push(new UglifyJSPlugin({sourceMap: true}));
-  }
-
-  return {
-    entry: {
-      'sw': './assets/sw/sw.js',
-    },
-    output: {
-      path: path.resolve(__dirname, '..', config.publicDir),
-      filename: '[name].js',
-    },
-    cache: buildCache,
-    devtool: '#source-map',
-    plugins,
-    module: {
-      rules: [
-        generateBabelEnvLoader([
-          // Browsers that support service worker.
-          'last 2 Chrome versions', 'not Chrome < 45',
-          'last 2 Firefox versions', 'not Firefox < 44',
-          'last 2 Edge versions', 'not Edge < 17',
-          'last 2 Safari versions', 'not Safari < 11.1',
-        ]),
-      ],
-    },
-  };
-};
-
 const createCompiler = (config) => {
   const compiler = webpack(config);
   return () => {
     return new Promise((resolve, reject) => {
       compiler.run((err, stats) => {
         if (err) return reject(err);
-        console.log(stats.toString({colors: true}) + '\n');
+
+        checkModuleDuplicates(
+            stats.toJson().modules.map((m) => m.identifier));
+
+        console.log(stats.toString({colors: true, maxModules: Infinity}));
         resolve();
       });
     });
   };
 };
-
-gulp.task('javascript:sw', async () => {
-  const {manifestEntries} = await workboxBuild.getManifest({
-    globDirectory: '.',
-    globPatterns: [],
-    templatedUrls: {
-      '/shell-start.html': [
-        'templates/_*',
-        'templates/shell-start.html',
-      ],
-      '/shell-end.html': [
-        'templates/_*',
-        'templates/shell-end.html',
-      ],
-    }
-  });
-
-  const compileSwBundle = createCompiler(getSwConfig(manifestEntries));
-  await compileSwBundle();
-})
 
 gulp.task('javascript:main', async () => {
   try {
@@ -226,6 +183,71 @@ gulp.task('javascript:main', async () => {
       const compileLegacyBundle = createCompiler(getLegacyConfig());
       await compileLegacyBundle();
     }
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+gulp.task('javascript:sw', async () => {
+  try {
+    const {manifestEntries} = await workboxBuild.getManifest({
+      globDirectory: 'build',
+      globPatterns: ['shell-*.html'],
+      manifestTransforms: [
+        // Append a leading slash to every URL.
+        (manifest) => {
+          manifest.forEach((e) => e.url = `/${e.url}`);
+          return {manifest};
+        },
+      ],
+    });
+
+    const plugins = [
+      resolve(),
+      replace({
+        'PRECACHE_MANIFEST': JSON.stringify(manifestEntries),
+        'process.env.NODE_ENV':
+            JSON.stringify(process.env.NODE_ENV || 'development'),
+      }),
+      babel({
+        presets: [['env', {
+          // debug: true,
+          modules: false,
+          // useBuiltIns: true,
+          targets: {
+            browsers: [
+              'last 2 Chrome versions', 'not Chrome < 45',
+              'last 2 Firefox versions', 'not Firefox < 44',
+              'last 2 Edge versions', 'not Edge < 17',
+              'last 2 Safari versions', 'not Safari < 11.1',
+            ],
+          },
+        }]],
+        plugins: ['external-helpers'],
+      }),
+    ];
+    if (process.env.NODE_ENV) {
+      plugins.push(uglifyPlugin({
+        mangle: {
+          properties: {
+            regex: /^_[\w]/,
+          },
+        },
+      }, minify));
+    }
+
+    const bundle = await rollup({
+      input: 'assets/sw/sw.js',
+      plugins,
+    });
+
+    checkModuleDuplicates(bundle.modules.map((m) => m.id));
+
+    await bundle.write({
+      file: 'build/sw.js',
+      // sourcemap: true,
+      format: 'es',
+    });
   } catch (err) {
     console.error(err);
   }
