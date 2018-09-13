@@ -5,8 +5,8 @@ import {installPrecache, activatePrecache} from './precache.js';
 import {router} from './router.js';
 import {createFakeFetchEvent} from './utils.js';
 
-import core, {LOG_LEVELS} from 'workbox-core';
-core.setLogLevel(LOG_LEVELS.debug);
+// import core, {LOG_LEVELS} from 'workbox-core';
+// core.setLogLevel(LOG_LEVELS.debug);
 
 const dimensions = {
   SERVICE_WORKER_REPLAY: 'cd8',

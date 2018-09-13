@@ -18,6 +18,7 @@ const main = async () => {
   drawer.init();
 
   // analytics.init();
+
   if ('serviceWorker' in navigator) {
     const updatesChannel = new BroadcastChannel('api-updates');
     updatesChannel.addEventListener('message', async (event) => {
@@ -28,9 +29,10 @@ const main = async () => {
       const registration = await navigator.serviceWorker.register('/sw.js');
 
       onNewSwActive(registration, (sw) => {
-        const urls = [location.href + 'index.content.html', ...performance
-            .getEntriesByType('resource')
-            .map((entry) => entry.name)];
+        const urls = [
+          location.href + 'index.content.html',
+          ...performance.getEntriesByType('resource').map(({name}) => name),
+        ];
 
         messageSw(sw, {cmd: 'CACHE_LOADED_RESOURCES', urls});
       });

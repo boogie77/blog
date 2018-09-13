@@ -6,12 +6,10 @@ const md5 = require('md5');
 const path = require('path');
 const {rollup} = require('rollup');
 const babel = require('rollup-plugin-babel');
-const minify = require('uglify-es').minify;
 const replace = require('rollup-plugin-replace');
 const resolve = require('rollup-plugin-node-resolve');
-const uglifyPlugin = require('rollup-plugin-uglify');
-const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
+const terserRollupPlugin = require('rollup-plugin-terser');
+const TerserWebpackPlugin = require('terser-webpack-plugin');
 const webpack = require('webpack');
 const ManifestPlugin = require('webpack-manifest-plugin');
 const workboxBuild = require('workbox-build');
@@ -96,7 +94,7 @@ const baseConfig = () => ({
   mode: process.env.NODE_ENV || 'development',
   optimization: {
     runtimeChunk: 'single',
-    minimizer: [new TerserPlugin({
+    minimizer: [new TerserWebpackPlugin({
       test: /\.m?js$/,
       sourceMap: true,
       terserOptions: {
@@ -227,13 +225,13 @@ gulp.task('javascript:sw', async () => {
       }),
     ];
     if (process.env.NODE_ENV) {
-      plugins.push(uglifyPlugin({
+      plugins.push(terserRollupPlugin({
         mangle: {
           properties: {
-            regex: /^_[\w]/,
-          },
+            regex: /(^_|_$)/,
+          }
         },
-      }, minify));
+      }));
     }
 
     const bundle = await rollup({
