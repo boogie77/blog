@@ -8,11 +8,11 @@ const staticAssetsMatcher = ({url}) => {
     url.pathname.startsWith('/static/');
 };
 
-const staticAssetsHandler = new CacheFirst({
+const staticAssetsStrategy = new CacheFirst({
   cacheName: cacheNames.STATIC_ASSETS,
   plugins: [new ExpirationPlugin({maxEntries: 10})],
 });
 
 export const createStaticAssetsRoute = () => {
-  return new Route(staticAssetsMatcher, staticAssetsHandler);
+  return new Route(staticAssetsMatcher, staticAssetsStrategy);
 };

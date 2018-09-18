@@ -30,7 +30,7 @@ const main = async () => {
 
       onNewSwActive(registration, (sw) => {
         const urls = [
-          location.href + 'index.content.html',
+          location.href,
           ...performance.getEntriesByType('resource').map(({name}) => name),
         ];
 

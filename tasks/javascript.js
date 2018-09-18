@@ -188,22 +188,9 @@ gulp.task('javascript:main', async () => {
 
 gulp.task('javascript:sw', async () => {
   try {
-    const {manifestEntries} = await workboxBuild.getManifest({
-      globDirectory: 'build',
-      globPatterns: ['shell-*.html'],
-      manifestTransforms: [
-        // Append a leading slash to every URL.
-        (manifest) => {
-          manifest.forEach((e) => e.url = `/${e.url}`);
-          return {manifest};
-        },
-      ],
-    });
-
     const plugins = [
       resolve(),
       replace({
-        'PRECACHE_MANIFEST': JSON.stringify(manifestEntries),
         'process.env.NODE_ENV':
             JSON.stringify(process.env.NODE_ENV || 'development'),
       }),

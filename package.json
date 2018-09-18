@@ -74,11 +74,9 @@
     "webpack-manifest-plugin": "^2.0.4",
     "whatwg-fetch": "^3.0.0",
     "workbox-broadcast-cache-update": "^3.5.0",
-    "workbox-build": "^3.5.0",
     "workbox-cache-expiration": "^3.5.0",
     "workbox-core": "^3.5.0",
     "workbox-google-analytics": "^3.5.0",
-    "workbox-precaching": "^3.5.0",
     "workbox-routing": "^3.5.0",
     "workbox-strategies": "^3.5.0"
   }

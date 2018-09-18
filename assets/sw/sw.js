@@ -1,7 +1,6 @@
 import {initialize as initializeOfflineAnalytics}
     from 'workbox-google-analytics';
 import {cacheNames, deleteUnusedCaches} from './caches.js';
-import {installPrecache, activatePrecache} from './precache.js';
 import {router} from './router.js';
 import {createFakeFetchEvent} from './utils.js';
 
@@ -19,9 +18,9 @@ initializeOfflineAnalytics({
 self.addEventListener('message', async (evt) => {
   if (evt.data.cmd === 'CACHE_LOADED_RESOURCES') {
     for (const url of evt.data.urls) {
-      const fakeFetchEvent = createFakeFetchEvent(url);
       console.log('Handling fake route for', url);
 
+      const fakeFetchEvent = createFakeFetchEvent(url);
       evt.waitUntil(router.handleRequest(fakeFetchEvent));
     }
   }
@@ -37,7 +36,6 @@ self.addEventListener('fetch', (evt) => {
 self.addEventListener('install', (evt) => {
   console.log('install', evt);
   const installationComplete = async () => {
-    await installPrecache();
     self.skipWaiting();
   };
 
@@ -47,7 +45,6 @@ self.addEventListener('install', (evt) => {
 self.addEventListener('activate', (evt) => {
   console.log('activate', evt);
   const activationComplete = async () => {
-    await activatePrecache();
     await deleteUnusedCaches();
 
     // TODO(philipwalton): also delete old IDB databases used by precache

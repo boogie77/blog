@@ -10,7 +10,7 @@ const pagePartialsMatcher = ({url}) => {
       url.pathname.endsWith('index.content.html');
 };
 
-export const pagePartialsHandler = new StaleWhileRevalidate({
+export const pagePartialsStrategy = new StaleWhileRevalidate({
   cacheName: cacheNames.PAGES,
   plugins: [
     new BroadcastUpdatePlugin('api-updates', {
@@ -20,5 +20,5 @@ export const pagePartialsHandler = new StaleWhileRevalidate({
 });
 
 export const createPagePartialsRoute = () => {
-  return new Route(pagePartialsMatcher, pagePartialsHandler);
+  return new Route(pagePartialsMatcher, pagePartialsStrategy);
 };

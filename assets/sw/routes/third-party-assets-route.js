@@ -7,10 +7,10 @@ const thirdPartyAssetsMatcher = ({url}) => {
       url.pathname.match(/\.(?:js|mp4)$/);
 };
 
-const thirdPartyAssetsHandler = new NetworkFirst({
+const thirdPartyAssetsStrategy = new NetworkFirst({
   cacheName: cacheNames.THIRD_PARTY_ASSETS,
 });
 
 export const createThirdPartyAssetsRoute = () => {
-  return new Route(thirdPartyAssetsMatcher, thirdPartyAssetsHandler);
+  return new Route(thirdPartyAssetsMatcher, thirdPartyAssetsStrategy);
 };
